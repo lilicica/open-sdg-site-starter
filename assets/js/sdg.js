@@ -78,7 +78,7 @@
       .domain(this.valueRange)
       .classes(this.options.colorRange.length);
 
-    this.years = _.uniq(_.pluck(this.geoData, 'Year'));
+    this.years = _.uniq(_.pluck(this.geoData, 'Year')).sort();
     this.currentYear = this.years[0];
 
     this.init();
@@ -257,8 +257,20 @@
       });
       $.when.apply($, geoURLs).done(function() {
 
+        // Apparently "arguments" can either be an array of responses, or if
+        // there was only one response, the response itself. This behavior is
+        // odd and should be investigated. In the meantime, a workaround is a
+        // blunt check to see if it is a single response.
         var geoJsons = arguments;
-        for (var i in geoJsons) {
+        // In a response, the second element is a string (like 'success') so
+        // check for that here to identify whether it is a response.
+        if (arguments.length > 1 && typeof arguments[1] === 'string') {
+          // If so, put it into an array, to match the behavior when there are
+          // multiple responses.
+          geoJsons = [geoJsons];
+        }
+
+        for (var i = 0; i < geoJsons.length; i++) {
           // First add the geoJson as static (non-interactive) borders.
           if (plugin.mapLayers[i].staticBorders) {
             var staticLayer = L.geoJson(geoJsons[i][0], {
@@ -679,7 +691,7 @@ var indicatorDataStore = function(dataUrl) {
     }
 
     that.fieldItemStates = _.map(_.filter(Object.keys(that.data[0]), function (key) {
-        return ['Year', 'Value', 'Units', 'GeoCode'].indexOf(key) === -1;
+        return ['Year', 'Value', 'Units', 'GeoCode', 'Observation status', 'Unit multiplier', 'Unit measure'].indexOf(key) === -1;
       }), function(field) {
       return {
         field: field,
@@ -1385,10 +1397,12 @@ var indicatorView = function (model, options) {
   });
 
   $(this._rootElement).on('click', '.variable-selector', function(e) {
+    var currentSelector = e.target;
 
     var options = $(this).find('.variable-options');
-    var optionsVisible = options.is(':visible');
-    $(options)[optionsVisible ? 'hide' : 'show']();
+    var optionsAreVisible = options.is(':visible');
+    $(options)[optionsAreVisible ? 'hide' : 'show']();
+    currentSelector.setAttribute("aria-expanded", optionsAreVisible ? "true" : "false");
 
     e.stopPropagation();
   });
@@ -1433,6 +1447,18 @@ var indicatorView = function (model, options) {
     if(chartInfo.selectedUnit) {
       view_obj._chartInstance.options.scales.yAxes[0].scaleLabel.labelString = chartInfo.selectedUnit;
     }
+
+    // Create a temp object to alter, and then apply. We go to all this trouble
+    // to avoid completely replacing view_obj._chartInstance -- and instead we
+    // just replace it's properties: "type", "data", and "options".
+    var updatedConfig = opensdg.chartConfigAlter({
+      type: view_obj._chartInstance.type,
+      data: view_obj._chartInstance.data,
+      options: view_obj._chartInstance.options
+    });
+    view_obj._chartInstance.type = updatedConfig.type;
+    view_obj._chartInstance.data = updatedConfig.data;
+    view_obj._chartInstance.options = updatedConfig.options;
 
     view_obj._chartInstance.update(1000, true);
 
@@ -1485,7 +1511,7 @@ var indicatorView = function (model, options) {
               text.push('<li data-datasetindex="' + datasetIndex + '">');
               text.push('<span class="swatch' + (dataset.borderDash ? ' dashed' : '') + '" style="background-color: ' + dataset.backgroundColor + '">');
               text.push('</span>');
-              text.push(dataset.label);
+              text.push(translations.t(dataset.label));
               text.push('</li>');
             });
 
@@ -1507,9 +1533,7 @@ var indicatorView = function (model, options) {
         }
       }
     };
-    if (typeof chartConfigOverrides !== 'undefined') {
-      $.extend(true, chartConfig, chartConfigOverrides);
-    }
+    chartConfig = opensdg.chartConfigAlter(chartConfig);
 
     this._chartInstance = new Chart($(this._rootElement).find('canvas'), chartConfig);
 
@@ -1566,7 +1590,13 @@ var indicatorView = function (model, options) {
         // TODO Merge this with the that.footerFields object used by table
         var graphFooterItems = [];
         if (that._model.dataSource) {
-          graphFooterItems.push(translations.indicator.source + ': ' + that._model.dataSource);
+          var sourceRows = getLinesFromText(translations.indicator.source + ': ' + that._model.dataSource);
+          graphFooterItems = graphFooterItems.concat(sourceRows);
+
+          if(sourceRows.length > 1) {
+            that._chartInstance.resize(parseInt($canvas.css('width')), parseInt($canvas.css('height')) + textRowHeight * sourceRows.length);
+            that._chartInstance.resize();
+          }
         }
         if (that._model.geographicalArea) {
           graphFooterItems.push(translations.indicator.geographical_area + ': ' + that._model.geographicalArea);
@@ -1595,7 +1625,7 @@ var indicatorView = function (model, options) {
 
   this.toCsv = function (tableData) {
     var lines = [],
-    headings = _.map(tableData.headings, function(heading) { return '"' + heading + '"'; });
+    headings = _.map(tableData.headings, function(heading) { return '"' + translations.t(heading) + '"'; });
 
     lines.push(headings.join(','));
 
@@ -1703,7 +1733,7 @@ var indicatorView = function (model, options) {
       var id = indicatorId.replace('indicator', '');
       $(el).append($('<a />').text(translations.indicator.download_headline)
       .attr({
-        'href': remoteDataBaseUrl + '/headline/' + id + '.csv',
+        'href': opensdg.remoteDataBaseUrl + '/headline/' + id + '.csv',
         'download': headlineId + '.csv',
         'title': translations.indicator.download_headline_title,
         'class': 'btn btn-primary btn-download',
@@ -1715,7 +1745,7 @@ var indicatorView = function (model, options) {
   this.createSourceButton = function(indicatorId, el) {
     $(el).append($('<a />').text(translations.indicator.download_source)
     .attr({
-      'href': remoteDataBaseUrl + '/data/' + indicatorId + '.csv',
+      'href': opensdg.remoteDataBaseUrl + '/data/' + indicatorId + '.csv',
       'download': indicatorId + '.csv',
       'title': translations.indicator.download_source_title,
       'class': 'btn btn-primary btn-download',
@@ -1751,7 +1781,7 @@ var indicatorView = function (model, options) {
 
       var getHeading = function(heading, index) {
         var span = '<span class="sort" />';
-        var span_heading = '<span>' + heading + '</span>';
+        var span_heading = '<span>' + translations.t(heading) + '</span>';
         return (!index || heading.toLowerCase() == 'units') ? span_heading + span : span + span_heading;
       };
 
@@ -1940,102 +1970,6 @@ $(function() {
 
 });
 
-var reportingStatus = function(indicatorDataStore) {
-  this.indicatorDataStore = indicatorDataStore;
-
-  this.getReportingStatus = function() {
-
-    var that = this;
-
-    return new Promise(function(resolve, reject) {
-
-      // if(Modernizr.localStorage &&) {
-
-      // }
-
-      getPercentages = function(values) {
-
-        var percentageTotal = 100;
-        var total = _.reduce(values, function(memo, num) { return memo + num; });
-        var percentages = _.map(values, function(v) { return (v / total) * percentageTotal; });
-
-        var off = percentageTotal - _.reduce(percentages, function(acc, x) { return acc + Math.round(x) }, 0);
-          return _.chain(percentages).
-                  map(function(x, i) { return Math.round(x) + (off > i) - (i >= (percentages.length + off)) }).
-                  value();
-      }
-
-      that.indicatorDataStore.getData().then(function(data) {
-        // for each goal, get a percentage of indicators in the various states:
-        // notstarted, inprogress, complete
-        var mappedData = _.map(data, function(dataItem) {
-
-          var returnItem = {
-            goal_id: dataItem.goal.id,
-            completeCount: _.where(dataItem.goal.indicators, { status: 'complete' }).length,
-            inProgressCount: _.where(dataItem.goal.indicators, { status: 'inprogress' }).length,
-            notStartedCount: _.where(dataItem.goal.indicators, { status: 'notstarted' }).length
-          };
-
-          returnItem.totalCount = returnItem.notStartedCount + returnItem.inProgressCount + returnItem.completeCount;
-          returnItem.counts = [returnItem.completeCount, returnItem.inProgressCount, returnItem.notStartedCount];
-          returnItem.percentages = getPercentages([returnItem.completeCount, returnItem.inProgressCount, returnItem.notStartedCount]);
-          
-          return returnItem;
-        });    
-
-        var getTotalByStatus = function(statusType) {
-          return _.chain(mappedData).pluck(statusType).reduce(function(sum, n) { return sum + n; }).value();          
-        };
-
-        var overall = {
-          totalCount: _.chain(mappedData).pluck('totalCount').reduce(function(sum, n) { return sum + n; }).value(),
-          counts: [
-            getTotalByStatus('completeCount'),
-            getTotalByStatus('inProgressCount'),
-            getTotalByStatus('notStartedCount')
-          ]
-        };
-
-        overall.percentages = getPercentages([overall.counts[0], overall.counts[1], overall.counts[2]]);          
-        
-        resolve({
-          goals: mappedData,
-          overall: overall
-        });
-      });     
-    });
-  };
-};
-
-$(function() {
-
-  if($('.container').hasClass('reportingstatus')) {
-    var url = $('.container.reportingstatus').attr('data-url'),
-        status = new reportingStatus(new indicatorDataStore(url)),
-        types = ['Reported online', 'Statistics in progress', 'Exploring data sources'],
-        bindData = function(el, data) {
-          $(el).find('.goal-stats span').each(function(index, statEl) {
-            var percentage = Math.round(Number(((data.counts[index] / data.totalCount) * 100))) + '%';
-            
-            $(statEl).attr({
-              'style': 'width:' + data.percentages[index] + '%',
-              'title': types[index] + ': ' + data.percentages[index] + '%'
-            });
-  
-            $(el).find('span.value:eq(' + index + ')').text(data.percentages[index] + '%');
-          }); 
-        };
-
-    status.getReportingStatus().then(function(data) {
-      bindData($('.goal-overall'), data.overall);
-      _.each(data.goals, function(goal) {
-        var el = $('.goal[data-goalid="' + goal.goal_id + '"]');
-        bindData(el, goal);       
-      });
-    });
-  }
-});
 $(function() {
 
   var topLevelSearchLink = $('.top-level span:eq(1)');
