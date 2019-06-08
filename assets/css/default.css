@@ -1538,3 +1538,6 @@ body.contrast-high {
           right: 5px;
           position: absolute;
           z-index: 3; }
+
+#jump-to-search a {
+  cursor: pointer; }
