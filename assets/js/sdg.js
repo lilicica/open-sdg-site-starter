@@ -474,8 +474,8 @@ Chart.plugins.register({
 
     var ranges = _.chain(datasets).pluck('allData').map(function (data) {
       return {
-        min: _.findIndex(data, _.identity),
-        max: _.findLastIndex(data, _.identity)
+        min: _.findIndex(data, function(val) { return val !== null }),
+        max: _.findLastIndex(data, function(val) { return val !== null })
       };
     }).value();
 
@@ -495,7 +495,8 @@ Chart.plugins.register({
       chart.update();
     }
   }
-});function event(sender) {
+});
+function event(sender) {
   this._sender = sender;
   this._listeners = [];
 }
@@ -1896,7 +1897,7 @@ var indicatorView = function (model, options) {
           var isUnits = (heading.toLowerCase() == 'units');
           var cell_prefix = (isYear) ? '<th scope="row"' : '<td';
           var cell_suffix = (isYear) ? '</th>' : '</td>';
-          row_html += cell_prefix + (isYear || isUnits ? '' : ' class="table-value"') + '>' + (data[index] ? data[index] : '-') + cell_suffix;
+          row_html += cell_prefix + (isYear || isUnits ? '' : ' class="table-value"') + '>' + (data[index] !== null ? data[index] : '-') + cell_suffix;
         });
         row_html += '</tr>';
         currentTable.find('tbody').append(row_html);
