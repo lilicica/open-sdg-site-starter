@@ -631,12 +631,6 @@ var indicatorDataStore = function(dataUrl) {
   this.onSelectionUpdate = new event(this);
   this.onNoHeadlineData = new event(this);
 
-  // data rounding:
-  this.roundingFunc = options.roundingFunc || function(value) {
-    var to = 3, mult = Math.pow(10, to - Math.floor(Math.log(Math.abs(value)) / Math.LN10) - 1);
-    return Math.round(value * mult) / mult;
-  };
-
   // json conversion:
   var convertJsonFormat = function(data) {
     var keys = _.keys(data);
@@ -773,7 +767,11 @@ var indicatorDataStore = function(dataUrl) {
 
       // only apply a rounding function for non-zero values:
       if(item.Value != 0) {
-        item.Value = that.roundingFunc(item.Value);
+        // For rounding, use a function that can be set on the global opensdg
+        // object, for easier control: opensdg.dataRounding()
+        if (typeof opensdg.dataRounding === 'function') {
+          item.Value = opensdg.dataRounding(item.Value);
+        }
       }
 
       // remove any undefined/null values:
@@ -826,7 +824,7 @@ var indicatorDataStore = function(dataUrl) {
         return that.selectedUnit ? i.Units : i.Year;
       })
       .map(function (d) {
-        return _.pick(d, _.identity);
+        return _.pick(d, function(val) { return val !== null });
       })
       .value();
   };
