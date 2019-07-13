@@ -1401,7 +1401,7 @@ body.contrast-high {
   body.contrast-high .goal-indicators div span {
     border-color: white !important;
     color: white !important; }
-  body.contrast-high .goal-indicators .indicator-cards a {
+  body.contrast-high .goal-indicators .indicator-cards a, body.contrast-high .goal-indicators .indicator-cards.target {
     color: white !important; }
   body.contrast-high .goal-indicators .indicator-cards span.status, body.contrast-high .goal-indicators .indicator-cards .tags li {
     color: black !important; }
