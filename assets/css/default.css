@@ -200,15 +200,15 @@ header {
     float: right; }
     .navbar #search label {
       position: absolute;
-      top: 8px;
-      left: 7px;
-      font-size: 1.25em; }
+      top: 5px;
+      right: 0px;
+      font-size: 1.40em; }
       .navbar #search label span {
         display: none; }
     .navbar #search input {
       padding: 5px;
-      padding-left: 29px;
-      width: 140px;
+      padding-left: 5px;
+      width: 150px;
       transition: width 0.4s;
       margin-top: 5px; }
       .navbar #search input:focus {
