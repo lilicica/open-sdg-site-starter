@@ -209,10 +209,14 @@ header {
       padding: 5px;
       padding-left: 5px;
       width: 150px;
+      height: 34px;
       transition: width 0.4s;
       margin-top: 5px; }
       .navbar #search input:focus {
         width: 350px; }
+
+#search-btn {
+  height: 34px; }
 
 .table .table-value {
   text-align: right; }
@@ -293,6 +297,11 @@ header {
         top: 23px;
         left: 25px;
         color: black; }
+      .navbar #search button {
+        display: inline-flex;
+        position: absolute;
+        right: 20px;
+        top: -3px; }
       .navbar #search input {
         width: 100%;
         color: #333;
