@@ -17,7 +17,6 @@ html {
 
 body {
   background: #eaeaea;
-  padding: 40px 0 0 0;
   margin: 0 0 50px 0; }
 
 header {
@@ -113,13 +112,7 @@ header {
     color: black; }
 
 #disclaimer {
-  background: #f2dede;
-  position: fixed;
-  top: 0;
-  right: 0;
-  left: 0;
-  z-index: 400;
-  max-height: 40px; }
+  background: #f2dede; }
   #disclaimer .phase-tag {
     background: #005ea5;
     color: white;
