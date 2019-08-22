@@ -603,7 +603,6 @@ h5 + .btn-download {
       position: absolute;
       top: 12px;
       right: 12px;
-  
       a {
         background-color: white;
         border: none;
@@ -611,7 +610,6 @@ h5 + .btn-download {
         float: left;
       }
     }
-  
     #zoom-in, #zoom-out {
       background-color: black;
       background-repeat: no-repeat;
@@ -620,11 +618,9 @@ h5 + .btn-download {
       width: 18px;
       height: 18px;
     }
-  
     #zoom-in {
       background-position: 1px 1px;
     }
-  
     #zoom-out {
       background-position: 1px -51px;
     }
@@ -1341,6 +1337,8 @@ footer {
 /* example stuff */
 body.contrast-high {
   background-color: black; }
+  body.contrast-high #page-content .alert div p, body.contrast-high #page-content .alert div h4 {
+    color: black; }
   body.contrast-high #accessibility-nav li.contrast-default {
     display: block; }
   body.contrast-high #accessibility-nav li.contrast-high {
@@ -1561,3 +1559,11 @@ body.contrast-high {
 
 #jump-to-search a {
   cursor: pointer; }
+
+.data-notice {
+  display: inline-block;
+  margin-left: 20px; }
+
+.fa-exclamation-circle {
+  font-size: 60px;
+  display: inline-block; }

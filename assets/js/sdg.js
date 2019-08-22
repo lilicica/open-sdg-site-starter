@@ -1200,7 +1200,8 @@ var indicatorDataStore = function(dataUrl) {
     if((options.initial || options.unitsChangeSeries) && !this.hasHeadline) {
       // if there is no initial data, select some:
 
-      var minimumFieldSelections = {};
+      var minimumFieldSelections = {},
+          forceUnit = false;
       // First, do we have some already pre-configured from data_start_values?
       if (this.startValues) {
         // We need to confirm that these values are valid, and pair them up
@@ -1225,6 +1226,8 @@ var indicatorDataStore = function(dataUrl) {
         // value in each drop-down, up until there are enough selected to display
         // data on the graph. First we get the number of fields:
         var fieldNames = _.pluck(this.fieldItemStates, 'field');
+        // Manually add "Units" so that we can check for required units.
+        fieldNames.push('Units');
         // We filter our full dataset to only those fields.
         var fieldData = _.map(this.data, function(item) { return _.pick(item, fieldNames); });
         // We then sort the data by each field. We go in reverse order so that the
@@ -1236,11 +1239,25 @@ var indicatorDataStore = function(dataUrl) {
         // rows. In other words we want the row with the fewest number of fields.
         fieldData = _.sortBy(fieldData, function(item) { return _.size(item); });
         minimumFieldSelections = fieldData[0];
+        // If we ended up finding something with "Units", we need to remove it
+        // before continuing and then remember to force it later.
+        if ('Units' in minimumFieldSelections) {
+          forceUnit = minimumFieldSelections['Units'];
+          delete minimumFieldSelections['Units'];
+        }
+      }
+
+      // Ensure that we only force a unit on the initial load.
+      if (!options.initial) {
+        forceUnit = false;
       }
 
       // Now that we are all sorted, we notify the view that there is no headline,
       // and pass along the first row as the minimum field selections.
-      this.onNoHeadlineData.notify({ minimumFieldSelections: minimumFieldSelections });
+      this.onNoHeadlineData.notify({
+        minimumFieldSelections: minimumFieldSelections,
+        forceUnit: forceUnit
+      });
     }
   };
 };
@@ -1348,6 +1365,13 @@ var indicatorView = function (model, options) {
 
   this._model.onNoHeadlineData.attach(function(sender, args) {
     if (args && args.minimumFieldSelections && _.size(args.minimumFieldSelections)) {
+      // Force a unit if necessary.
+      if (args.forceUnit) {
+        $('#units input[type="radio"]')
+          .filter('[value="' + args.forceUnit + '"]')
+          .first()
+          .click();
+      }
       // If we have minimum field selections, impersonate a user and "click" on
       // each item.
       for (var fieldToSelect in args.minimumFieldSelections) {
@@ -1520,14 +1544,28 @@ var indicatorView = function (model, options) {
 
   $(this._rootElement).on('click', '.variable-selector', function(e) {
     var currentSelector = e.target;
-
+    
+    var currentButton = getCurrentButtonFromCurrentSelector(currentSelector);
+    
     var options = $(this).find('.variable-options');
     var optionsAreVisible = options.is(':visible');
     $(options)[optionsAreVisible ? 'hide' : 'show']();
-    currentSelector.setAttribute("aria-expanded", optionsAreVisible ? "true" : "false");
+    currentButton.setAttribute("aria-expanded", optionsAreVisible ? "true" : "false");
+    
+    var optionsVisibleAfterClick = options.is(':visible');
+    currentButton.setAttribute("aria-expanded", optionsVisibleAfterClick ? "true" : "false");
 
     e.stopPropagation();
   });
+  
+  function getCurrentButtonFromCurrentSelector(currentSelector){
+    if(currentSelector.tagName === "H5"){
+      return currentSelector.parentElement;
+    }
+    else if(currentSelector.tagName === "BUTTON"){
+      return currentSelector;
+    }
+  }
 
   this.initialiseSeries = function(args) {
     if(args.series.length) {
@@ -1953,7 +1991,7 @@ var indicatorView = function (model, options) {
     };
     fieldGroupElement.find('label')
     .sort(sortLabels)
-    .appendTo(fieldGroupElement.find('.variable-options'));
+    .appendTo(fieldGroupElement.find('#indicatorData .variable-options'));
   }
 };
 var indicatorController = function (model, view) {
@@ -2098,6 +2136,34 @@ $(function() {
     $('.top-level li').removeClass('active');
     $('.top-level span').removeClass('open');
   };  
+  
+  var topLevelMenuToggle = document.querySelector("#menuToggle");
+  
+  topLevelMenuToggle.addEventListener("click", function(){
+    setTopLevelMenuAccessibilityActions();
+  });
+  function setTopLevelMenuAccessibilityActions(){
+    if(topLevelMenuIsOpen()){
+      setAriaExpandedStatus(true);
+      focusOnFirstMenuElement();
+    }
+    else{
+      setAriaExpandedStatus(false);
+    }
+    function topLevelMenuIsOpen(){
+      return topLevelMenuToggle.classList.contains("active");
+    }
+    function setAriaExpandedStatus(expandedStatus){
+      topLevelMenuToggle.setAttribute("aria-expanded", expandedStatus.toString());
+    }
+    function focusOnFirstMenuElement(){
+      var firstMenuElement = getFirstMenuElement();
+      firstMenuElement.focus();
+    }
+    function getFirstMenuElement(){
+      return document.querySelector("#menu .nav-link:first-child a");
+    }
+  }
 
   $('.top-level span, .top-level button').click(function() {
     var target = $(this).data('target');
